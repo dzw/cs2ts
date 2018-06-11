@@ -88,6 +88,39 @@ namespace cs2ts
                 base.Visit(statement);
             }
         }
+        private int lastEqualVal = 0;
+        public override void VisitEnumDeclaration(EnumDeclarationSyntax node) {
+            string modifier = GetVisibilityModifier(node.Modifiers);
+
+            Emit(string.Join(" ", modifier, "class", node.Identifier.Text));
+
+            lastEqualVal = 0;
+            using (IndentedBracketScope()) {
+                base.VisitEnumDeclaration(node);
+            }
+        }
+
+        public override void VisitEnumMemberDeclaration(EnumMemberDeclarationSyntax node) {
+            int val = 0;
+            if (node.EqualsValue != null) {
+                System.String toString = node.EqualsValue.ToString();
+                System.String substring = toString.Substring(1);
+                Int32 parse = int.Parse(substring);
+                val = parse;
+
+                string str = string.Format(" public {0}:int {1}", node.Identifier.Text, toString);
+                Emit(str);
+            }
+            else {
+                val = lastEqualVal + 1;
+                string str = string.Format(" public {0}:int = {1}", node.Identifier.Text, val);
+                Emit(str);
+            }
+
+            lastEqualVal = val;
+
+            this.DefaultVisit(node);            
+        }
 
         public override void VisitClassDeclaration(ClassDeclarationSyntax node)
         {
@@ -126,9 +159,10 @@ namespace cs2ts
             var methodSignature = string.Format("{0}{1}:", node.Identifier.Text, parameters);
             Emit(String.Join(" ", visibility, methodSignature, this.GetMappedType(node.ReturnType)));
 
-            using (IndentedBracketScope())
-            {
-                VisitBlock(node.Body);
+            if(node.Body!=null) {
+                using (IndentedBracketScope()) {
+                    VisitBlock(node.Body);
+                }
             }
         }
 
