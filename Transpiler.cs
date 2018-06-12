@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Text.RegularExpressions;
 
 namespace cs2ts
 {
@@ -48,7 +49,23 @@ namespace cs2ts
             if (type.ToString().EndsWith("Exception"))
                 return type.ToString();
 
-            return type.ToString().StartsWith("int") ? "number" : "string";
+            System.String toString = type.ToString();
+            String name = null;
+            
+            if (toString.StartsWith("int"))
+                name = "number";
+            else if (toString.StartsWith("float"))
+                name = "number";
+            else if (toString.StartsWith("string"))
+                name = "string";
+            else if (Regex.IsMatch(toString, "List<.*>")) {
+                System.String replace = Regex.Replace(toString, "List<(.*)>", "Array<$1>");
+                name = replace;
+            }                
+            else                
+                name = toString;
+
+            return name;
         }
 
         private static string GetVisibilityModifier(SyntaxTokenList tokens)
@@ -144,9 +161,19 @@ namespace cs2ts
         {
             string visibility = GetVisibilityModifier(node.Modifiers);
 
-            foreach (var identifier in node.Declaration.Variables)
-            {
-                Emit(string.Format("{0} {1}: {2};", visibility, identifier.GetText(), GetMappedType(node.Declaration.Type)));
+            foreach (var identifier in node.Declaration.Variables) {
+                string mappedType = GetMappedType(node.Declaration.Type);
+                var text = identifier.GetText().ToString();
+                string format = null;
+                var indexOf = text.IndexOf("=");
+                if (indexOf != -1) {
+                    var prop = text.Substring(0, indexOf);
+                    var val = text.Substring(indexOf+1 );
+                    format = string.Format("{0} {1}: {2} = {3};", visibility, prop, mappedType, val);
+                }
+                else
+                    format = string.Format("{0} {1}: {2};", visibility, text, mappedType);
+                Emit(format);
             }
         }
 
@@ -265,6 +292,32 @@ namespace cs2ts
                 var separator = String.Concat(",", Environment.NewLine, GetIndentation(), padding);
                 var lines = prefix + String.Join(separator, node.Variables.Select(v => v.Identifier.Value).ToList());
                 Emit(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
+            }
+        }
+//         public override void DefaultVisit(SyntaxNode node) {
+//             System.Type type = node.GetType();
+//             Console.WriteLine(type);
+//             base.DefaultVisit(node);
+//         }
+        public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
+
+            string visibility = GetVisibilityModifier(node.Modifiers);
+
+            var parameters = string.Format(
+                "({0})",
+                node.ParameterList
+                    .Parameters
+                    .Select(p => string.Format("{0}: {1}", p.Identifier.Text, GetMappedType(p.Type)))
+                    .ToCsv()
+            );
+ 
+             var methodSignature = string.Format("constructor{0}", parameters);
+             Emit(String.Join(" ", methodSignature));
+
+            if(node.Body!=null) {
+                using (IndentedBracketScope()) {
+                    VisitBlock(node.Body);
+                }
             }
         }
 
