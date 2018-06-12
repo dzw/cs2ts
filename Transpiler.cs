@@ -88,36 +88,42 @@ namespace cs2ts
                 base.Visit(statement);
             }
         }
-        private int lastEqualVal = 0;
+        private string str_lastEqualVal = "=0";
+        private int counter = 0;
         public override void VisitEnumDeclaration(EnumDeclarationSyntax node) {
             string modifier = GetVisibilityModifier(node.Modifiers);
 
             Emit(string.Join(" ", modifier, "class", node.Identifier.Text));
 
-            lastEqualVal = 0;
+            str_lastEqualVal = "=0";
+            counter = 0;
             using (IndentedBracketScope()) {
                 base.VisitEnumDeclaration(node);
             }
         }
 
         public override void VisitEnumMemberDeclaration(EnumMemberDeclarationSyntax node) {
-            int val = 0;
             if (node.EqualsValue != null) {
                 System.String toString = node.EqualsValue.ToString();
-                System.String substring = toString.Substring(1);
-                Int32 parse = int.Parse(substring);
-                val = parse;
+                str_lastEqualVal = toString;
+                this.counter = 0;
 
-                string str = string.Format(" public {0}:int {1}", node.Identifier.Text, toString);
+                var match = System.Text.RegularExpressions.Regex.IsMatch(str_lastEqualVal, @"\s*=\s*0");
+
+                string str = string.Format(" public {0}:int {1};", node.Identifier.Text, str_lastEqualVal);
                 Emit(str);
             }
             else {
-                val = lastEqualVal + 1;
-                string str = string.Format(" public {0}:int = {1}", node.Identifier.Text, val);
+                var match = System.Text.RegularExpressions.Regex.IsMatch(str_lastEqualVal, @"\s*=\s*0");
+                string str = null;
+                if (match)
+                    str= string.Format(" public {0}:int = {1};", node.Identifier.Text, this.counter);
+                else
+                    str = string.Format(" public {0}:int = {1}+{2};", node.Identifier.Text, str_lastEqualVal, this.counter);
+
                 Emit(str);
             }
-
-            lastEqualVal = val;
+            this.counter++;
 
             this.DefaultVisit(node);            
         }
