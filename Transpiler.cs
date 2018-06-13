@@ -51,7 +51,11 @@ namespace cs2ts
 
             System.String toString = type.ToString();
             String name = null;
-            
+
+            if (toString.StartsWith("bool"))
+                name = "Boolean";
+            if (toString.StartsWith("long"))
+                name = "number";
             if (toString.StartsWith("int"))
                 name = "number";
             else if (toString.StartsWith("float"))
@@ -148,8 +152,22 @@ namespace cs2ts
         public override void VisitClassDeclaration(ClassDeclarationSyntax node)
         {
             string modifier = GetVisibilityModifier(node.Modifiers);
+            
 
-            Emit(string.Join(" ", modifier, "class", node.Identifier.Text));
+            string dec = null;
+            if (modifier == "public")
+                dec = string.Join(" ", "export " + modifier, "class", node.Identifier.Text);
+            else
+                dec = string.Join(" ", modifier, "class", node.Identifier.Text);
+
+            string parent = null;
+            if (node.BaseList != null) {
+                parent = node.BaseList.Types.First().ToString();
+                dec = dec + " extends " + parent;
+            }
+
+            Emit(dec);
+
 
             using (IndentedBracketScope())
             {
@@ -217,9 +235,13 @@ namespace cs2ts
             {
                 foreach (var accessor in node.AccessorList.Accessors)
                 {
-                    var signature = (accessor.Keyword.Kind() != SyntaxKind.GetKeyword ? String.Format("(value: {0})", mappedType) : string.Concat(": ", mappedType));
+                    var signature = 
+                        (accessor.Keyword.Kind() != SyntaxKind.GetKeyword 
+                        ? String.Format("(value: {0})", mappedType) 
+                        : string.Concat("(): ", mappedType));
 
-                    Emit(string.Format("{0} {1} {2}{3}", visibility, accessor.Keyword, node.Identifier.Text, signature));
+                    var format = string.Format("{0} {1} {2}{3}", visibility, accessor.Keyword, node.Identifier.Text, signature);
+                    Emit(format);
 
                     using (IndentedBracketScope())
                     {
@@ -294,11 +316,15 @@ namespace cs2ts
                 Emit(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
             }
         }
-//         public override void DefaultVisit(SyntaxNode node) {
-//             System.Type type = node.GetType();
-//             Console.WriteLine(type);
-//             base.DefaultVisit(node);
-//         }
+        public override void VisitUsingDirective(UsingDirectiveSyntax node) {
+            //import {BaseBattleThing} from "./BaseBattleThing";
+            this.DefaultVisit(node);
+        }
+        public override void DefaultVisit(SyntaxNode node) {
+            System.Type type = node.GetType();
+            //Console.WriteLine(type);
+            base.DefaultVisit(node);
+        }
         public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
 
             string visibility = GetVisibilityModifier(node.Modifiers);
