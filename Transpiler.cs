@@ -316,8 +316,38 @@ namespace cs2ts
                 Emit(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
             }
         }
+        private string[] ignoreNameSpace = { "AnimationOrTween",
+"Coda",
+"Coda.LockStep",
+"Coda.Tools",
+"DG",
+"DG.Tweening",
+"FL",
+"FL.v1",
+"FL.v1.Crc32",
+"FL.v1.File",
+"FL.v1.Security",
+"FlyingWormConsole3",
+"Ref",
+"Spine",
+"ui",
+        };
         public override void VisitUsingDirective(UsingDirectiveSyntax node) {
             //import {BaseBattleThing} from "./BaseBattleThing";
+            System.String name_sp = node.Name.ToString();
+
+            var bbreak = false;
+            if (name_sp.IndexOf("System") >= 0)
+                bbreak = true;
+            if (name_sp.IndexOf("UnityEngine") >= 0)
+                bbreak = true;
+
+            if (ignoreNameSpace.ToList().IndexOf(name_sp) >= 0)
+                bbreak = true;
+            
+            if(!bbreak)
+                Emit("import " + name_sp + ";");
+            
             this.DefaultVisit(node);
         }
         public override void DefaultVisit(SyntaxNode node) {
