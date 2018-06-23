@@ -37,7 +37,7 @@ namespace cs2ts{
                 output = string.Format(string.Concat(indentation, text), args);
             }
 
-            if (text.IndexOf("bool") != -1)
+            if (text.IndexOf(":int ") != -1)
                 nop();
 
             _output.Add(output);
@@ -126,16 +126,16 @@ namespace cs2ts{
 
                 var match = System.Text.RegularExpressions.Regex.IsMatch(str_lastEqualVal, @"\s*=\s*0");
 
-                string str = string.Format(" public static {0}:int {1};", node.Identifier.Text, str_lastEqualVal);
+                string str = string.Format(" public static {0}:number {1};", node.Identifier.Text, str_lastEqualVal);
                 Emit(str);
             }
             else{
                 var match = System.Text.RegularExpressions.Regex.IsMatch(str_lastEqualVal, @"\s*=\s*0");
                 string str = null;
                 if (match)
-                    str = string.Format(" public static {0}:int = {1};", node.Identifier.Text, this.counter);
+                    str = string.Format(" public static {0}:number = {1};", node.Identifier.Text, this.counter);
                 else
-                    str = string.Format(" public static {0}:int = {1}+{2};", node.Identifier.Text, str_lastEqualVal,
+                    str = string.Format(" public static {0}:number {1}+{2};", node.Identifier.Text, str_lastEqualVal,
                         this.counter);
 
                 Emit(str);
@@ -267,7 +267,12 @@ namespace cs2ts{
 
         public override void VisitExpressionStatement(ExpressionStatementSyntax node){
             // TODO: Don't just emit the expression as-is. Need to process the nodes of the expression
-            Emit(node.ToString());
+
+            var text = node.ToString();
+            //var regex = new Regex("\\((bool|Boolean|byte|double|float|int|long|sbyte|short|string|String|uint|ulong|ushort)\\)");
+            //regex .Replace(text, )
+
+            Emit(text);
         }
 
         public override void VisitReturnStatement(ReturnStatementSyntax node){
