@@ -3,24 +3,38 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace cs2ts
-{
-    class Program
-    {
-        public static void Main(params string[] args)
-        {
-            if (args.Length == 0)
-            {
+namespace cs2ts{
+    class Program{
+        public static void Main(params string[] args){
+            if (args.Length == 0){
                 Console.WriteLine("missing file argument");
                 return;
             }
 
-            var visitor = new Transpiler(File.ReadAllText(args[0]));
+            var input = args[0];
+            string outputFileName = null;
+            var isDirectory = Directory.Exists(input);
+            if (isDirectory){
+                var enumerateFiles = Directory.EnumerateFiles(input, "*.cs");
+                foreach (string file in enumerateFiles){
+                    NewMethod(file, file.Replace(".cs", ".ts"));
+                }
+            }
+            else{
+                outputFileName = args.Length > 1 ? args[1] : Path.ChangeExtension(input, "ts");
+                var exists = File.Exists(input);
+                if (exists)
+                    NewMethod(input, outputFileName);
+            }
+        }
 
-            var output = visitor.ToTypeScript();
-            var outputFileName = args.Length > 1 ? args[1] : Path.ChangeExtension(args[0], "ts");
+        private static void NewMethod(string input, string output){
+            Console.WriteLine("translating " + input);
 
-            File.WriteAllText(outputFileName, output);
+            var csCode = File.ReadAllText(input);
+            var visitor = new Transpiler(csCode);
+            var tsCode = visitor.ToTypeScript();
+            File.WriteAllText(output, tsCode);
         }
     }
 }

@@ -392,22 +392,27 @@ namespace cs2ts{
 
         public override void VisitTrivia(SyntaxTrivia trivia){
             var kind = trivia.Kind();
-            if (kind == SyntaxKind.SingleLineCommentTrivia
-                || kind == SyntaxKind.MultiLineCommentTrivia
-                || kind == SyntaxKind.DocumentationCommentExteriorTrivia
-                || kind == SyntaxKind.SingleLineDocumentationCommentTrivia
-                || kind == SyntaxKind.MultiLineDocumentationCommentTrivia
-            ){
-                Emit(trivia.ToString());
-                //_commentStore.AddCommentTrivia(trivia, _commentLocationStore, _fileName);
+            if (kind == SyntaxKind.DocumentationCommentExteriorTrivia){
+                Emit(trivia.ToString() + trivia.Token.ToString());
             }
 
             base.VisitTrivia(trivia);
+
+            if (kind == SyntaxKind.SingleLineCommentTrivia)
+                Emit(trivia.ToString());
+
+            if (kind == SyntaxKind.MultiLineCommentTrivia
+                || kind == SyntaxKind.MultiLineDocumentationCommentTrivia
+            ){
+                Emit(trivia.ToString());
+            }
         }
 
-        public override void VisitDocumentationCommentTrivia(DocumentationCommentTriviaSyntax node){
-            //             _commentStore.AddCommentNode(node, _commentLocationStore, _fileName);
-            base.VisitDocumentationCommentTrivia(node);
+        public override void VisitDocumentationCommentTrivia(DocumentationCommentTriviaSyntax trivia){
+            base.VisitDocumentationCommentTrivia(trivia);
+
+//            if (trivia.Kind() == SyntaxKind.SingleLineDocumentationCommentTrivia)
+//                Emit(trivia.ToString());
         }
 
         internal class BlockScope : IDisposable{
