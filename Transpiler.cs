@@ -26,6 +26,8 @@ namespace cs2ts{
             return new string(' ', _indent * 4);
         }
 
+        private Regex regex = new Regex("([0-9]+)f([^\"0-9a-fA-F])");
+
         private void Emit(string text, params object[] args){
             var indentation = GetIndentation();
 
@@ -37,10 +39,12 @@ namespace cs2ts{
                 output = string.Format(string.Concat(indentation, text), args);
             }
 
-            if (text.IndexOf(":int ") != -1)
+            var replace = regex.Replace(output, "$1$2");
+
+            if (output.IndexOf("CreateCharacter") != -1)
                 nop();
 
-            _output.Add(output);
+            _output.Add(replace);
         }
 
         private string GetMappedType(TypeSyntax type){
@@ -77,6 +81,10 @@ namespace cs2ts{
             return tokens.Any(m => m.Kind() == SyntaxKind.PublicKeyword) ? "public" : "private";
         }
 
+        private static string GetStaticModifier(SyntaxTokenList tokens){
+            return tokens.Any(m => m.Kind() == SyntaxKind.StaticKeyword) ? "static" : "";
+        }
+
         private Transpiler.BlockScope IndentedBracketScope(){
             return new BlockScope(this);
         }
@@ -108,7 +116,7 @@ namespace cs2ts{
 
         public override void VisitEnumDeclaration(EnumDeclarationSyntax node){
             string modifier = GetVisibilityModifier(node.Modifiers);
-
+            modifier = "export";
             Emit(string.Join(" ", modifier, "class", node.Identifier.Text));
 
             str_lastEqualVal = "=0";
@@ -193,7 +201,11 @@ namespace cs2ts{
         }
 
         public override void VisitMethodDeclaration(MethodDeclarationSyntax node){
-            string visibility = GetVisibilityModifier(node.Modifiers);
+            var syntaxTokenList = node.Modifiers;
+            string visibility = GetVisibilityModifier(syntaxTokenList);
+            string staticy = GetStaticModifier(syntaxTokenList);
+            if (staticy == "static")
+                visibility += " " + staticy;
 
             var parameters = string.Format(
                 "({0})",
@@ -397,6 +409,14 @@ namespace cs2ts{
 
         public override void VisitTrivia(SyntaxTrivia trivia){
             var kind = trivia.Kind();
+
+            if (kind == SyntaxKind.EndOfLineTrivia
+                || kind == SyntaxKind.WhitespaceTrivia){
+                base.VisitTrivia(trivia);
+                return;
+            }
+
+
             if (kind == SyntaxKind.DocumentationCommentExteriorTrivia){
                 Emit(trivia.ToString() + trivia.Token.ToString());
             }

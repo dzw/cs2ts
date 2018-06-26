@@ -100,5 +100,11 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="libcstrans\libcstrans.csproj">
+      <Project>{7978338d-13a6-4f74-96db-93da902ef0fb}</Project>
+      <Name>libcstrans</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

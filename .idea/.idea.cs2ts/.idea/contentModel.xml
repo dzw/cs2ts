@@ -4,9 +4,30 @@
     <e p="C:\Users\dzw\.Rider2018.1\system\resharper-host\local\Transient\ReSharperHost\v12\SolutionCaches\_cs2ts.-1246017241.00" t="ExcludeRecursive" />
     <e p="D:\GameXY\XyGame_T" t="ExcludeRecursive" />
     <e p="G:\j_cs2ts\cs2ts" t="IncludeRecursive">
+      <e p="bin" t="ExcludeRecursive" />
       <e p="cs2ts.csproj" t="IncludeRecursive" />
       <e p="cs2ts.sln" t="IncludeFlat" />
       <e p="EnumerableExtensions.cs" t="Include" />
+      <e p="libcstrans" t="IncludeRecursive">
+        <e p="cstran.cs" t="Include" />
+        <e p="GenCode" t="Include">
+          <e p="Content.cs" t="Include" />
+          <e p="Content_Class.cs" t="Include" />
+          <e p="Content_Expr.cs" t="Include" />
+          <e p="Content_Namespace.cs" t="Include" />
+          <e p="Content_Other.cs" t="Include" />
+          <e p="Content_Statement.cs" t="Include" />
+        </e>
+        <e p="libcstrans.csproj" t="IncludeRecursive" />
+        <e p="obj" t="ExcludeRecursive" />
+        <e p="Properties" t="Include">
+          <e p="AssemblyInfo.cs" t="Include" />
+        </e>
+        <e p="util" t="Include">
+          <e p="Tools.cs" t="Include" />
+          <e p="Type.cs" t="Include" />
+        </e>
+      </e>
       <e p="obj" t="ExcludeRecursive" />
       <e p="packages" t="ExcludeRecursive" />
       <e p="packages.config" t="Include" />

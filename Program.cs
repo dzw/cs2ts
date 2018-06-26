@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
 namespace cs2ts{
     class Program{
         public static void Main(params string[] args){
@@ -15,8 +14,10 @@ namespace cs2ts{
             string outputFileName = null;
             var isDirectory = Directory.Exists(input);
             if (isDirectory){
-                var enumerateFiles = Directory.EnumerateFiles(input, "*.cs");
+                var enumerateFiles = Directory.EnumerateFiles(input, "*.cs", SearchOption.AllDirectories);
                 foreach (string file in enumerateFiles){
+                    if (file.Contains("EightFurnacePanelCtrl"))
+                        Console.WriteLine("nop");
                     NewMethod(file, file.Replace(".cs", ".ts"));
                 }
             }
