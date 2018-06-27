@@ -58,7 +58,7 @@ namespace cs2ts{
             String name = null;
 
             if (toString.StartsWith("bool"))
-                name = "Boolean";
+                name = "boolean";
             else if (toString.StartsWith("long"))
                 name = "number";
             else if (toString.StartsWith("int"))
