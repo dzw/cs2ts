@@ -41,7 +41,7 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("var i,") != -1)
+            if (output.IndexOf("if (n <= 0)") != -1)
                 nop();
 
             _output.Add(replace);
@@ -296,6 +296,14 @@ namespace cs2ts{
             //base.VisitContinueStatement(node);
         }
 
+        public override void VisitDoStatement(DoStatementSyntax node){
+            string format = string.Format("for ({0};{1};{2})", "", node.Condition.ToString(), "");
+            Emit(format);
+            using (IndentedBracketScope()){
+                base.VisitDoStatement(node);
+            }
+        }
+
         public override void VisitForStatement(ForStatementSyntax node){
             string dec = "";
             string cond = "";
@@ -455,6 +463,11 @@ namespace cs2ts{
                     VisitBlock(node.Body);
                 }
             }
+        }
+
+        public override void VisitThrowStatement(ThrowStatementSyntax node){
+            Emit(string.Format("throw new Error('{0}')", node.ToString()));
+            base.VisitThrowStatement(node);
         }
 
         public override void VisitIfStatement(IfStatementSyntax node){
