@@ -41,7 +41,7 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("CreateCharacter") != -1)
+            if (output.IndexOf("var i,") != -1)
                 nop();
 
             _output.Add(replace);
@@ -291,27 +291,96 @@ namespace cs2ts{
             Emit(node.ToString());
         }
 
-        public override void VisitVariableDeclaration(VariableDeclarationSyntax node){
-            var type = node.Type.ToString() != "var" ? GetMappedType(node.Type) : String.Empty;
+        public override void VisitContinueStatement(ContinueStatementSyntax node){
+            Emit(node.ToString());
+            //base.VisitContinueStatement(node);
+        }
 
+        public override void VisitForStatement(ForStatementSyntax node){
+            string dec = "";
+            string cond = "";
+            string inc = "";
+
+            if (node.Declaration != null)
+                dec = string.Join(",", visitDecl(node.Declaration).ToArray());
+            if (node.Condition != null)
+                cond = node.Condition.ToString();
+            if (node.Incrementors != null)
+                inc = node.Incrementors.ToString();
+
+            string format = string.Format("for ({0};{1};{2})", dec, cond, inc);
+            Emit(format);
+
+            using (IndentedBracketScope()){
+                base.VisitForStatement(node);
+            }
+        }
+
+        public override void VisitVariableDeclaration(VariableDeclarationSyntax node){
+            if (node.Parent.Kind() == SyntaxKind.ForStatement){
+                return;
+            }
+
+            var decl = visitDecl(node);
+            for (int i = 0; i < decl.Count; i++){
+                var s = decl[i];
+                Emit(s + ";");
+            }
+        }
+
+        private List<string> visitDecl(VariableDeclarationSyntax node){
+            var type = node.Type.ToString() != "var" ? GetMappedType(node.Type) : String.Empty;
+            var list = new List<string>();
+            string format;
             if (node.Variables.SeparatorCount == 0){
                 foreach (var identifier in node.Variables){
                     var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
                     var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
-                    Emit(string.Format("var {0}{1}{2};", identifier.Identifier.Value, typeDeclaration, initializer));
+                    list.Add(string.Format("var {0}{1}{2}", identifier.Identifier.Value, typeDeclaration,
+                        initializer));
                 }
             }
             else{
-                var prefix = "var ";
-                var identifier = node.Variables.Last();
-                var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
-                var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
+//                if (node.ToString() == "int i = 0, imax = t.childCount")
+//                    nop();
+//                {
+//                    var prefix = "var ";
+//                    var identifier = node.Variables.Last();
+//                    var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
+//                    var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
+//
+//                    string padding = new string(' ', prefix.Length);
+//                    var separator = String.Concat(",", Environment.NewLine, GetIndentation(), padding);
+//                    var enumerable = node.Variables.Select(
+//                        v => v.Identifier.Value
+//                    ).ToList();
+//                    var lines = prefix + String.Join(separator,
+//                                    enumerable);
+//                    list.Add(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
+//                }
+                if (node.ToString() == "int i = 0, imax = t.childCount")
+                    nop();
+                {
+                    var prefix = "var ";
 
-                string padding = new string(' ', prefix.Length);
-                var separator = String.Concat(",", Environment.NewLine, GetIndentation(), padding);
-                var lines = prefix + String.Join(separator, node.Variables.Select(v => v.Identifier.Value).ToList());
-                Emit(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
+                    List<string> vars = new List<string>();
+                    for (int i = 0; i < node.Variables.Count; i++){
+                        var identifier = node.Variables[i];
+                        var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
+                        var initializer = identifier.Initializer != null
+                            ? (" " + identifier.Initializer)
+                            : String.Empty;
+                        var item = string.Format("{0}{1}{2}", identifier.Identifier.Value, typeDeclaration,
+                            initializer);
+                        vars.Add(item);
+                    }
+
+                    var @join = string.Join(",", vars.ToArray());
+                    list.Add(string.Format("{0}{1}", prefix, @join));
+                }
             }
+
+            return list;
         }
 
         private string[] ignoreNameSpace = {
@@ -352,13 +421,15 @@ namespace cs2ts{
         }
 
         public override void DefaultVisit(SyntaxNode node){
-            /*
-                        System.Type type = node.GetType();
-                        System.String substring = type.ToString().Substring(LLLL);
-                        System.String toString = node.ToString();
-                        System.String split = toString.Split('\n')[0];
-                        Console.WriteLine(substring +"   "+ split);
-            */
+            if (node.Kind() == SyntaxKind.ContinueStatement){
+                nop();
+            }
+
+//            System.Type type = node.GetType();
+//            System.String substring = type.ToString().Substring(LLLL);
+//            System.String toString = node.ToString();
+//            System.String split = toString.Split('\n')[0];
+//            Console.WriteLine(substring + "   " + split);
 
             base.DefaultVisit(node);
         }
