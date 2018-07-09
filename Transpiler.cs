@@ -41,10 +41,18 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("if (n <= 0)") != -1)
+            if (output.IndexOf("var mainHeroTrack: number = 3;") != -1)
                 nop();
 
             _output.Add(replace);
+        }
+
+        private string getDefault(EqualsValueClauseSyntax argDefault){
+            if (argDefault == null)
+                return "";
+            else{
+                return argDefault.ToString();
+            }
         }
 
         private string GetMappedType(TypeSyntax type){
@@ -211,7 +219,10 @@ namespace cs2ts{
                 "({0})",
                 node.ParameterList
                     .Parameters
-                    .Select(p => string.Format("{0}: {1}", p.Identifier.Text, GetMappedType(p.Type)))
+                    .Select(
+                        p => string.Format("{0}: {1}{2}", p.Identifier.Text, GetMappedType(p.Type),
+                            getDefault(p.Default))
+                    )
                     .ToCsv()
             );
 
@@ -285,6 +296,13 @@ namespace cs2ts{
             //regex .Replace(text, )
 
             Emit(text);
+//            Console.Write("BBBBBBBBBBBBBBB");
+//            DefaultVisit(node);
+//            Console.Write("EEEEEEEEEEEEEEE\n");
+        }
+
+        public override void VisitIdentifierName(IdentifierNameSyntax node){
+            base.VisitIdentifierName(node);
         }
 
         public override void VisitReturnStatement(ReturnStatementSyntax node){
@@ -301,6 +319,16 @@ namespace cs2ts{
             Emit(format);
             using (IndentedBracketScope()){
                 base.VisitDoStatement(node);
+            }
+        }
+
+        public override void VisitForEachStatement(ForEachStatementSyntax node){
+            Emit(string.Format("for (var k__ in {0})", node.Expression));
+
+            var format = string.Format("var {0}:{1}={2}[k__];", node.Identifier, node.Type, node.Expression);
+            using (IndentedBracketScope()){
+                Emit(format);
+                base.VisitForEachStatement(node);
             }
         }
 
