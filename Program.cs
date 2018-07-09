@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
 namespace cs2ts{
     class Program{
         public static void Main(params string[] args){
@@ -17,7 +18,7 @@ namespace cs2ts{
                 var enumerateFiles = Directory.EnumerateFiles(input, "*.cs", SearchOption.AllDirectories);
                 foreach (string file in enumerateFiles){
                     if (file.Contains("EightFurnacePanelCtrl"))
-                        Console.WriteLine("nop");
+                        nop();
                     NewMethod(file, file.Replace(".cs", ".ts"));
                 }
             }
@@ -27,6 +28,9 @@ namespace cs2ts{
                 if (exists)
                     NewMethod(input, outputFileName);
             }
+        }
+
+        private static void nop(){
         }
 
         private static void NewMethod(string input, string output){
