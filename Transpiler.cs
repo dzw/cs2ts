@@ -41,7 +41,7 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("this.characterData = agent") != -1)
+            if (output.IndexOf("public get BuffMachine") != -1)
                 nop();
 
             _output.Add(replace);
@@ -434,7 +434,20 @@ namespace cs2ts{
             //var regex = new Regex("\\((bool|Boolean|byte|double|float|int|long|sbyte|short|string|String|uint|ulong|ushort)\\)");
             //regex .Replace(text, )
 
-            if (inMethod){
+            text = replaceMemberAccess(text);
+
+            Emit(text);
+            if (inExpress)
+                nop();
+            inExpress = true;
+            //Console.WriteLine("BBBBBBBBBBBBBBB");
+            DefaultVisit(node);
+            //Console.WriteLine("EEEEEEEEEEEEEEE");
+            inExpress = false;
+        }
+
+        private string replaceMemberAccess(string text){
+            if (inMethod && class_node != null){
                 for (int i = 0; i < this.fields.Count; i++){
                     var s = this.fields[i];
                     if (this.local_vars.IndexOf(s) == -1){
@@ -455,14 +468,7 @@ namespace cs2ts{
                 }
             }
 
-            Emit(text);
-            if (inExpress)
-                nop();
-            inExpress = true;
-            //Console.WriteLine("BBBBBBBBBBBBBBB");
-            DefaultVisit(node);
-            //Console.WriteLine("EEEEEEEEEEEEEEE");
-            inExpress = false;
+            return text;
         }
 
         private bool inExpress = false;
@@ -493,7 +499,9 @@ namespace cs2ts{
         }
 
         public override void VisitReturnStatement(ReturnStatementSyntax node){
-            Emit(node.ToString());
+            var text = node.ToString();
+            text = replaceMemberAccess(text);
+            Emit(text);
         }
 
         public override void VisitContinueStatement(ContinueStatementSyntax node){
