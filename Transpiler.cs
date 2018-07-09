@@ -41,7 +41,7 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("public get BuffMachine") != -1)
+            if (output.IndexOf("this.OnFixedUpdate") != -1)
                 nop();
 
             _output.Add(replace);
@@ -333,6 +333,10 @@ namespace cs2ts{
             if (inMethod)
                 nop();
             inMethod = true;
+            ensureLocals();
+        }
+
+        private void ensureLocals(){
             local_vars = local_vars == null ? new List<string>() : local_vars;
         }
 
@@ -349,6 +353,11 @@ namespace cs2ts{
             string staticy = GetStaticModifier(syntaxTokenList);
             if (staticy == "static")
                 visibility += " " + staticy;
+
+            for (int i = 0; i < node.ParameterList.Parameters.Count; i++){
+                var param = node.ParameterList.Parameters[i];
+                this.local_vars.Add(param.Identifier.Text);
+            }
 
             var parameters = string.Format(
                 "({0})",
@@ -383,6 +392,7 @@ namespace cs2ts{
         }
 
         public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node){
+            enterFun();
             string mappedType = GetMappedType(node.Type);
             string visibility = GetVisibilityModifier(node.Modifiers);
 
@@ -405,6 +415,8 @@ namespace cs2ts{
             else{
                 Emit(string.Join(" ", visibility, string.Concat(node.Identifier.Text, ":"), mappedType + ";"));
             }
+
+            exitFun();
         }
 
         public override void VisitTryStatement(TryStatementSyntax node){
@@ -447,25 +459,26 @@ namespace cs2ts{
         }
 
         private string replaceMemberAccess(string text){
-            if (inMethod && class_node != null){
-                for (int i = 0; i < this.fields.Count; i++){
-                    var s = this.fields[i];
-                    if (this.local_vars.IndexOf(s) == -1){
-                        var regex2 = new Regex("(^|[^_a-zA-Z.])" +
-                                               "(" + s + ")" +
-                                               "([^_a-zA-Z0-9])");
-                        text = regex2.Replace(text, "$1this.$2$3");
-                    }
-                }
+            if (class_node == null)
+                return text;
 
-                for (int i = 0; i < this.methods.Count; i++){
-                    var s = this.methods[i];
+            for (int i = 0; i < this.fields.Count; i++){
+                var s = this.fields[i];
+                if (this.local_vars != null && this.local_vars.IndexOf(s) == -1){
                     var regex2 = new Regex("(^|[^_a-zA-Z.])" +
                                            "(" + s + ")" +
-                                           @"\("
-                    );
-                    text = regex2.Replace(text, "$1this.$2(");
+                                           "([^_a-zA-Z0-9]|$)");
+                    text = regex2.Replace(text, "$1this.$2$3");
                 }
+            }
+
+            for (int i = 0; i < this.methods.Count; i++){
+                var s = this.methods[i];
+                var regex2 = new Regex("(^|[^_a-zA-Z.])" +
+                                       "(" + s + ")" +
+                                       @"\("
+                );
+                text = regex2.Replace(text, "$1this.$2(");
             }
 
             return text;
@@ -540,6 +553,7 @@ namespace cs2ts{
                 inc = node.Incrementors.ToString();
 
             string format = string.Format("for ({0};{1};{2})", dec, cond, inc);
+            format = replaceMemberAccess(format);
             Emit(format);
 
             using (IndentedBracketScope()){
@@ -562,6 +576,7 @@ namespace cs2ts{
             var decl = visitDecl(node);
             for (int i = 0; i < decl.Count; i++){
                 var s = decl[i];
+                s = replaceMemberAccess(s);
                 Emit(s + ";");
             }
         }
@@ -661,7 +676,13 @@ namespace cs2ts{
         private int LLLL = "Microsoft.CodeAnalysis.CSharp.Syntax.".Length;
 
         public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node){
+            enterFun();
             string visibility = GetVisibilityModifier(node.Modifiers);
+
+            for (int i = 0; i < node.ParameterList.Parameters.Count; i++){
+                var param = node.ParameterList.Parameters[i];
+                this.local_vars.Add(param.Identifier.Text);
+            }
 
             var parameters = string.Format(
                 "({0})",
@@ -679,6 +700,8 @@ namespace cs2ts{
                     VisitBlock(node.Body);
                 }
             }
+
+            exitFun();
         }
 
         public override void VisitThrowStatement(ThrowStatementSyntax node){
@@ -687,7 +710,9 @@ namespace cs2ts{
         }
 
         public override void VisitIfStatement(IfStatementSyntax node){
-            Emit("if ({0})", node.Condition.ToString());
+            var args = node.Condition.ToString();
+            args = replaceMemberAccess(args);
+            Emit("if ({0})", args);
             using (IndentedBracketScope(node.Statement))
                 Visit(node.Statement);
 
