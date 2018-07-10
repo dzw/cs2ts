@@ -40,9 +40,15 @@ namespace cs2ts{
             }
 
             var replace = regex.Replace(output, "$1$2");
+            if (replace.IndexOf("(int)") != -1)
+                replace = replace.Replace("(int)", "<number>");
 
-            if (output.IndexOf("var baseBuffData: BaseBuffData") != -1)
+            if (replace.IndexOf("new List<") != -1)
+                replace = replace.Replace("new List<", "new Array<");
+
+            if (replace.IndexOf("protected PreloadBuffData") != -1)
                 nop();
+
 
             _output.Add(replace);
         }
@@ -110,6 +116,10 @@ namespace cs2ts{
 
         private static string GetStaticModifier(SyntaxTokenList tokens){
             return tokens.Any(m => m.Kind() == SyntaxKind.StaticKeyword) ? "static" : "";
+        }
+
+        private static bool GetAbstractModifier(SyntaxTokenList tokens){
+            return tokens.Any(m => m.Kind() == SyntaxKind.AbstractKeyword) ? true : false;
         }
 
         private Transpiler.BlockScope IndentedBracketScope(){
@@ -351,29 +361,22 @@ namespace cs2ts{
             var syntaxTokenList = node.Modifiers;
             string visibility = GetVisibilityModifier(syntaxTokenList);
             string staticy = GetStaticModifier(syntaxTokenList);
+
             if (staticy == "static")
                 visibility += " " + staticy;
 
-            for (int i = 0; i < node.ParameterList.Parameters.Count; i++){
-                var param = node.ParameterList.Parameters[i];
-                this.local_vars.Add(param.Identifier.Text);
-            }
-
-            var parameters = string.Format(
-                "({0})",
-                node.ParameterList
-                    .Parameters
-                    .Select(
-                        p => string.Format("{0}: {1}{2}", p.Identifier.Text, GetMappedType(p.Type),
-                            getDefault(p.Default))
-                    )
-                    .ToCsv()
-            );
+            var nodeParameterList = node.ParameterList;
+            var parameters = parseParams(nodeParameterList);
 
             var fnName = node.Identifier.Text;
 
             var methodSignature = string.Format("{0}{1}:", fnName, parameters);
-            Emit(String.Join(" ", visibility, methodSignature, this.GetMappedType(node.ReturnType)));
+
+            if (GetAbstractModifier(syntaxTokenList))
+                Emit(String.Join(" ", visibility, methodSignature, this.GetMappedType(node.ReturnType),
+                    "{throw new Error(\"abstract\");}"));
+            else
+                Emit(String.Join(" ", visibility, methodSignature, this.GetMappedType(node.ReturnType)));
 
             if (node.Body != null){
                 using (IndentedBracketScope()){
@@ -707,18 +710,7 @@ namespace cs2ts{
             enterFun();
             string visibility = GetVisibilityModifier(node.Modifiers);
 
-            for (int i = 0; i < node.ParameterList.Parameters.Count; i++){
-                var param = node.ParameterList.Parameters[i];
-                this.local_vars.Add(param.Identifier.Text);
-            }
-
-            var parameters = string.Format(
-                "({0})",
-                node.ParameterList
-                    .Parameters
-                    .Select(p => string.Format("{0}: {1}", p.Identifier.Text, GetMappedType(p.Type)))
-                    .ToCsv()
-            );
+            var parameters = parseParams(node.ParameterList);
 
             var methodSignature = string.Format("constructor{0}", parameters);
             Emit(String.Join(" ", methodSignature));
@@ -730,6 +722,24 @@ namespace cs2ts{
             }
 
             exitFun();
+        }
+
+        private string parseParams(ParameterListSyntax nodeParameterList){
+            for (int i = 0; i < nodeParameterList.Parameters.Count; i++){
+                var param = nodeParameterList.Parameters[i];
+                this.local_vars.Add(param.Identifier.Text);
+            }
+
+            var parameters = string.Format(
+                "({0})",
+                nodeParameterList
+                    .Parameters
+                    .Select(p => string.Format("{0}: {1}{2}", p.Identifier.Text, GetMappedType(p.Type),
+                        getDefault(p.Default))
+                    )
+                    .ToCsv()
+            );
+            return parameters;
         }
 
         public override void VisitThrowStatement(ThrowStatementSyntax node){
