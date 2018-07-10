@@ -41,7 +41,7 @@ namespace cs2ts{
 
             var replace = regex.Replace(output, "$1$2");
 
-            if (output.IndexOf("this.OnFixedUpdate") != -1)
+            if (output.IndexOf("var baseBuffData: BaseBuffData") != -1)
                 nop();
 
             _output.Add(replace);
@@ -465,7 +465,7 @@ namespace cs2ts{
             for (int i = 0; i < this.fields.Count; i++){
                 var s = this.fields[i];
                 if (this.local_vars != null && this.local_vars.IndexOf(s) == -1){
-                    var regex2 = new Regex("(^|[^_a-zA-Z.])" +
+                    var regex2 = new Regex("(^|[^_a-zA-Z.\"])" +
                                            "(" + s + ")" +
                                            "([^_a-zA-Z0-9]|$)");
                     text = regex2.Replace(text, "$1this.$2$3");
@@ -485,6 +485,8 @@ namespace cs2ts{
         }
 
         private bool inExpress = false;
+
+        //private bool logVis = true;
         private bool logVis = false;
 
         public override void DefaultVisit(SyntaxNode node){
@@ -559,6 +561,32 @@ namespace cs2ts{
             using (IndentedBracketScope()){
                 base.VisitForStatement(node);
             }
+        }
+
+        public override void VisitSwitchStatement(SwitchStatementSyntax node){
+            Emit(string.Format("{0} ({1})", node.SwitchKeyword.Text, node.Expression));
+            using (IndentedBracketScope()){
+                base.VisitSwitchStatement(node);
+            }
+        }
+
+        public override void VisitSwitchSection(SwitchSectionSyntax node){
+            for (int i = 0; i < node.Labels.Count; i++){
+                if (node.Labels[i] is CaseSwitchLabelSyntax){
+                    CaseSwitchLabelSyntax switchLabelSyntax = node.Labels[i] as CaseSwitchLabelSyntax;
+                    Emit(string.Format("{0} {1}:", switchLabelSyntax.Keyword.Text, switchLabelSyntax.Value));
+                }
+                else{
+                    DefaultSwitchLabelSyntax switchLabelSyntax = node.Labels[i] as DefaultSwitchLabelSyntax;
+                    Emit(string.Format("{0}:", switchLabelSyntax.Keyword.Text));
+                }
+            }
+
+            using (IndentedBracketScope()){
+                base.VisitSwitchSection(node);
+            }
+
+            Emit("break;");
         }
 
         public override void VisitVariableDeclaration(VariableDeclarationSyntax node){
