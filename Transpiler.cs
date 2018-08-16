@@ -46,11 +46,16 @@ namespace cs2ts{
             if (replace.IndexOf("new List<") != -1)
                 replace = replace.Replace("new List<", "new Array<");
 
-            if (replace.IndexOf("protected PreloadBuffData") != -1)
+            if (replace.IndexOf("private _DelayPlaySuccessPanel(") != -1)
                 nop();
 
 
             _output.Add(replace);
+        }
+
+        public override void VisitYieldStatement(YieldStatementSyntax node){
+            Emit("/*{0}*/", node.ToString());
+            base.VisitYieldStatement(node);
         }
 
         private string getDefault(EqualsValueClauseSyntax argDefault){
@@ -398,8 +403,8 @@ namespace cs2ts{
             enterFun();
             string mappedType = GetMappedType(node.Type);
             string visibility = GetVisibilityModifier(node.Modifiers);
-
-            if (!(node.AccessorList.Accessors.All(ad => ad.Body == null))){
+            
+            if (node.AccessorList != null && !(node.AccessorList.Accessors.All(ad => ad.Body == null))){
                 foreach (var accessor in node.AccessorList.Accessors){
                     var signature =
                         (accessor.Keyword.Kind() != SyntaxKind.GetKeyword
