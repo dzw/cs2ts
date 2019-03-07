@@ -7,12 +7,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis" Version="2.10.0" />
-    <PackageReference Include="NUnit" Version="3.11.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\cs2ts\cs2ts.csproj" />
   </ItemGroup>
 
 </Project>
