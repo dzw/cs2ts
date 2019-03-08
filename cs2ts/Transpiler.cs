@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -6,13 +7,19 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text.RegularExpressions;
 
-namespace cs2ts{
-    public class Transpiler : CSharpSyntaxWalker{
+
+namespace cs2ts
+{
+    public class Transpiler 
+        : CSharpSyntaxWalker
+    {
         private readonly IList<string> _output;
 
         private int _indent;
 
-        public Transpiler(string code) : base(SyntaxWalkerDepth.StructuredTrivia){
+        public Transpiler(string code) 
+            : base(SyntaxWalkerDepth.StructuredTrivia)
+        {
             _output = new List<string>();
             _indent = 0;
 
@@ -22,20 +29,24 @@ namespace cs2ts{
             Visit(root);
         }
 
-        private string GetIndentation(){
+        private string GetIndentation()
+        {
             return new string(' ', _indent * 4);
         }
 
         private Regex regex = new Regex("([0-9]+)f([^\"0-9a-fA-F])");
 
-        private void Emit(string text, params object[] args){
+        private void Emit(string text, params object[] args)
+        {
             var indentation = GetIndentation();
 
             string output = null;
-            if (!args.Any()){
+            if (!args.Any())
+            {
                 output = string.Concat(indentation, text);
             }
-            else{
+            else
+            {
                 output = string.Format(string.Concat(indentation, text), args);
             }
 
@@ -43,30 +54,55 @@ namespace cs2ts{
             if (replace.IndexOf("(int)") != -1)
                 replace = replace.Replace("(int)", "<number>");
 
+            if (replace.IndexOf("(long)") != -1)
+                replace = replace.Replace("(long)", "<number>");
+
+            if (replace.IndexOf("(uint)") != -1)
+                replace = replace.Replace("(uint)", "<number>");
+
+            if (replace.IndexOf("(ulong)") != -1)
+                replace = replace.Replace("(ulong)", "<number>");
+
+            if (replace.IndexOf("(float)") != -1)
+                replace = replace.Replace("(float)", "<number>");
+
+            if (replace.IndexOf("(double)") != -1)
+                replace = replace.Replace("(double)", "<number>");
+
+            if (replace.IndexOf("(decimal)") != -1)
+                replace = replace.Replace("(decimal)", "<number>");
+
+
+            if (replace.IndexOf("new System.Collections.Generic.List<") != -1)
+                replace = replace.Replace("new System.Collections.Generic.List<", "new Array<");
+
             if (replace.IndexOf("new List<") != -1)
                 replace = replace.Replace("new List<", "new Array<");
 
-            if (replace.IndexOf("private _DelayPlaySuccessPanel(") != -1)
-                nop();
-
+            // if (replace.IndexOf("private _DelayPlaySuccessPanel(") != -1)
+            //     nop();
 
             _output.Add(replace);
         }
 
-        public override void VisitYieldStatement(YieldStatementSyntax node){
+        public override void VisitYieldStatement(YieldStatementSyntax node)
+        {
             Emit("/*{0}*/", node.ToString());
             base.VisitYieldStatement(node);
         }
 
-        private string getDefault(EqualsValueClauseSyntax argDefault){
+        private string getDefault(EqualsValueClauseSyntax argDefault)
+        {
             if (argDefault == null)
                 return "";
-            else{
+            else
+            {
                 return argDefault.ToString();
             }
         }
 
-        private string GetMappedType(TypeSyntax type){
+        private string GetMappedType(TypeSyntax type)
+        {
             if (type.ToString() == "void")
                 return "void";
 
@@ -74,19 +110,32 @@ namespace cs2ts{
                 return type.ToString();
 
             string toString = type.ToString();
-            String name = null;
+            string name = null;
 
             if (toString.StartsWith("bool"))
                 name = "boolean";
+            else if (toString.StartsWith("int"))
+                name = "number";
             else if (toString.StartsWith("long"))
                 name = "number";
-            else if (toString.StartsWith("int"))
+            else if (toString.StartsWith("uint"))
+                name = "number";
+            else if (toString.StartsWith("ulong"))
                 name = "number";
             else if (toString.StartsWith("float"))
                 name = "number";
+            else if (toString.StartsWith("double"))
+                name = "number";
+            else if (toString.StartsWith("decimal"))
+                name = "number";
+            else if (toString.StartsWith("DateTime"))
+                name = "Date";
+            else if (toString.StartsWith("System.DateTime"))
+                name = "Date";
             else if (toString.StartsWith("string"))
                 name = "string";
-            else if (Regex.IsMatch(toString, "List<.*>")){
+            else if (Regex.IsMatch(toString, "List<.*>"))
+            {
                 string replace = Regex.Replace(toString, "List<(.*)>", "Array<$1>");
                 name = replace;
             }
@@ -96,20 +145,25 @@ namespace cs2ts{
             return name;
         }
 
-        private static string GetVisibilityModifier(SyntaxTokenList tokens){
+        private static string GetVisibilityModifier(SyntaxTokenList tokens)
+        {
             var enumerable = tokens.Select(m => m.Kind());
             var sources = enumerable.ToList();
-            for (int i = 0; i < sources.Count; i++){
+            for (int i = 0; i < sources.Count; i++)
+            {
                 var syntaxKind = sources[i];
-                switch (syntaxKind){
-                    case SyntaxKind.PublicKeyword:{
-                        return "public";
-                        break;
-                    }
-                    case SyntaxKind.ProtectedKeyword:{
-                        return "protected";
-                        break;
-                    }
+                switch (syntaxKind)
+                {
+                    case SyntaxKind.PublicKeyword:
+                        {
+                            return "public";
+                            break;
+                        }
+                    case SyntaxKind.ProtectedKeyword:
+                        {
+                            return "protected";
+                            break;
+                        }
                     case SyntaxKind.PrivateKeyword:
                         return "private";
                         break;
@@ -119,36 +173,45 @@ namespace cs2ts{
             return "private";
         }
 
-        private static string GetStaticModifier(SyntaxTokenList tokens){
+        private static string GetStaticModifier(SyntaxTokenList tokens)
+        {
             return tokens.Any(m => m.Kind() == SyntaxKind.StaticKeyword) ? "static" : "";
         }
 
-        private static bool GetAbstractModifier(SyntaxTokenList tokens){
+        private static bool GetAbstractModifier(SyntaxTokenList tokens)
+        {
             return tokens.Any(m => m.Kind() == SyntaxKind.AbstractKeyword) ? true : false;
         }
 
-        private Transpiler.BlockScope IndentedBracketScope(){
+        private Transpiler.BlockScope IndentedBracketScope()
+        {
             return new BlockScope(this);
         }
 
-        private Transpiler.BlockScope IndentedBracketScope(SyntaxNode node){
+        private Transpiler.BlockScope IndentedBracketScope(SyntaxNode node)
+        {
             return new BlockScope(this, node.Kind() == SyntaxKind.Block);
         }
 
-        public void AddIndent(){
+        public void AddIndent()
+        {
             _indent += 1;
         }
 
-        public void RemoveIndent(){
+        public void RemoveIndent()
+        {
             _indent -= 1;
         }
 
-        public string ToTypeScript(){
+        public string ToTypeScript()
+        {
             return string.Join(Environment.NewLine, _output);
         }
 
-        public override void VisitBlock(BlockSyntax node){
-            foreach (var statement in node.Statements){
+        public override void VisitBlock(BlockSyntax node)
+        {
+            foreach (var statement in node.Statements)
+            {
                 base.Visit(statement);
             }
         }
@@ -156,20 +219,24 @@ namespace cs2ts{
         private string str_lastEqualVal = "=0";
         private int counter = 0;
 
-        public override void VisitEnumDeclaration(EnumDeclarationSyntax node){
+        public override void VisitEnumDeclaration(EnumDeclarationSyntax node)
+        {
             string modifier = GetVisibilityModifier(node.Modifiers);
             modifier = "export";
             Emit(string.Join(" ", modifier, "class", node.Identifier.Text));
 
             str_lastEqualVal = "=0";
             counter = 0;
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitEnumDeclaration(node);
             }
         }
 
-        public override void VisitEnumMemberDeclaration(EnumMemberDeclarationSyntax node){
-            if (node.EqualsValue != null){
+        public override void VisitEnumMemberDeclaration(EnumMemberDeclarationSyntax node)
+        {
+            if (node.EqualsValue != null)
+            {
                 string toString = node.EqualsValue.ToString();
                 str_lastEqualVal = toString;
                 this.counter = 0;
@@ -179,7 +246,8 @@ namespace cs2ts{
                 string str = string.Format(" public static {0}:number {1};", node.Identifier.Text, str_lastEqualVal);
                 Emit(str);
             }
-            else{
+            else
+            {
                 var match = System.Text.RegularExpressions.Regex.IsMatch(str_lastEqualVal, @"\s*=\s*0");
                 string str = null;
                 if (match)
@@ -197,7 +265,8 @@ namespace cs2ts{
         }
 
 
-        public override void VisitClassDeclaration(ClassDeclarationSyntax node){
+        public override void VisitClassDeclaration(ClassDeclarationSyntax node)
+        {
             string modifier = GetVisibilityModifier(node.Modifiers);
 
             //string mod = modifier;
@@ -209,7 +278,8 @@ namespace cs2ts{
                 dec = string.Join(" ", mod, "class", node.Identifier.Text);
 
             string parent = null;
-            if (node.BaseList != null){
+            if (node.BaseList != null)
+            {
                 parent = node.BaseList.Types.First().ToString();
                 dec = dec + " extends " + parent;
             }
@@ -219,7 +289,8 @@ namespace cs2ts{
             enterClass(node);
 
             //class_node.Members
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitClassDeclaration(node);
             }
 
@@ -231,109 +302,134 @@ namespace cs2ts{
         private List<string> fields;
         private List<string> methods;
 
-        private string FnField(SyntaxToken syntaxToken){
+        private string FnField(SyntaxToken syntaxToken)
+        {
             string identifierIdentifier = syntaxToken.Text;
 
             fields.Add(identifierIdentifier);
             return identifierIdentifier;
         }
 
-        private string FnName(MethodDeclarationSyntax node){
+        private string FnName(MethodDeclarationSyntax node)
+        {
             var fnName = node.Identifier.Text;
             methods.Add(fnName);
             return fnName;
         }
 
-        private void enterClass(ClassDeclarationSyntax node){
+        private void enterClass(ClassDeclarationSyntax node)
+        {
             class_node = node;
             fields = fields == null ? new List<string>() : fields;
             methods = methods == null ? new List<string>() : methods;
 
-            for (int i = 0; i < node.Members.Count; i++){
+            for (int i = 0; i < node.Members.Count; i++)
+            {
                 var member = node.Members[i];
-                switch (member.Kind()){
-                    case SyntaxKind.FieldDeclaration:{
-                        foreach (var identifier in (member as FieldDeclarationSyntax).Declaration.Variables){
-                            FnField(identifier.Identifier);
+                switch (member.Kind())
+                {
+                    case SyntaxKind.FieldDeclaration:
+                        {
+                            foreach (var identifier in (member as FieldDeclarationSyntax).Declaration.Variables)
+                            {
+                                FnField(identifier.Identifier);
+                            }
                         }
-                    }
                         break;
-                    case SyntaxKind.MethodDeclaration:{
-                        FnName(member as MethodDeclarationSyntax);
-                    }
-                        break;
-                    case SyntaxKind.PropertyDeclaration:{
-                        var syntaxToken = (member as PropertyDeclarationSyntax).Identifier;
-                        FnField(syntaxToken);
-                    }
-                        break;
-                    case SyntaxKind.DelegateDeclaration:{
-                        var syntaxToken = (member as DelegateDeclarationSyntax).Identifier;
-                        FnField(syntaxToken);
-                    }
-                        break;
-                    case SyntaxKind.EventFieldDeclaration:{
-                        foreach (var identifier in (member as EventFieldDeclarationSyntax).Declaration.Variables){
-                            FnField(identifier.Identifier);
+                    case SyntaxKind.MethodDeclaration:
+                        {
+                            FnName(member as MethodDeclarationSyntax);
                         }
-                    }
                         break;
-                    case SyntaxKind.ConstructorDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.PropertyDeclaration:
+                        {
+                            var syntaxToken = (member as PropertyDeclarationSyntax).Identifier;
+                            FnField(syntaxToken);
+                        }
                         break;
-                    case SyntaxKind.StructDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.DelegateDeclaration:
+                        {
+                            var syntaxToken = (member as DelegateDeclarationSyntax).Identifier;
+                            FnField(syntaxToken);
+                        }
                         break;
-                    case SyntaxKind.ClassDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.EventFieldDeclaration:
+                        {
+                            foreach (var identifier in (member as EventFieldDeclarationSyntax).Declaration.Variables)
+                            {
+                                FnField(identifier.Identifier);
+                            }
+                        }
                         break;
-                    case SyntaxKind.EnumDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.ConstructorDeclaration:
+                        {
+                            nop();
+                        }
                         break;
-                    case SyntaxKind.EventDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.StructDeclaration:
+                        {
+                            nop();
+                        }
                         break;
-                    case SyntaxKind.IndexerDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.ClassDeclaration:
+                        {
+                            nop();
+                        }
                         break;
-                    case SyntaxKind.InterfaceDeclaration:{
-                        nop();
-                    }
+                    case SyntaxKind.EnumDeclaration:
+                        {
+                            nop();
+                        }
                         break;
-                    default:{
-                        Console.WriteLine("ddddd:" + member.GetType().ToString());
-                    }
+                    case SyntaxKind.EventDeclaration:
+                        {
+                            nop();
+                        }
+                        break;
+                    case SyntaxKind.IndexerDeclaration:
+                        {
+                            nop();
+                        }
+                        break;
+                    case SyntaxKind.InterfaceDeclaration:
+                        {
+                            nop();
+                        }
+                        break;
+                    default:
+                        {
+                            Console.WriteLine("ddddd:" + member.GetType().ToString());
+                        }
                         break;
                 }
             }
         }
 
-        private void exitClass(){
+        private void exitClass()
+        {
             class_node = null;
             fields.Clear();
             methods.Clear();
         }
 
 
-        public override void VisitFieldDeclaration(FieldDeclarationSyntax node){
+        public override void VisitFieldDeclaration(FieldDeclarationSyntax node)
+        {
             string visibility = GetVisibilityModifier(node.Modifiers);
 
-            foreach (var identifier in node.Declaration.Variables){
+            foreach (var identifier in node.Declaration.Variables)
+            {
                 var declarationType = node.Declaration.Type;
                 string mappedType = GetMappedType(declarationType);
                 string format = null;
                 string identifierIdentifier = identifier.Identifier.Text;
-                if (identifier.Initializer != null){
+                if (identifier.Initializer != null)
+                {
                     format = string.Format("{0} {1}: {2} {3};", visibility, identifierIdentifier, mappedType,
                         identifier.Initializer);
                 }
-                else{
+                else
+                {
                     format = string.Format("{0} {1}: {2};", visibility, identifierIdentifier, mappedType);
                 }
 
@@ -344,23 +440,27 @@ namespace cs2ts{
         private List<string> local_vars;
         private bool inMethod = false;
 
-        private void enterFun(){
+        private void enterFun()
+        {
             if (inMethod)
                 nop();
             inMethod = true;
             ensureLocals();
         }
 
-        private void ensureLocals(){
+        private void ensureLocals()
+        {
             local_vars = local_vars == null ? new List<string>() : local_vars;
         }
 
-        private void exitFun(){
+        private void exitFun()
+        {
             local_vars.Clear();
             inMethod = false;
         }
 
-        public override void VisitMethodDeclaration(MethodDeclarationSyntax node){
+        public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
+        {
             enterFun();
 
             var syntaxTokenList = node.Modifiers;
@@ -383,8 +483,10 @@ namespace cs2ts{
             else
                 Emit(String.Join(" ", visibility, methodSignature, this.GetMappedType(node.ReturnType)));
 
-            if (node.Body != null){
-                using (IndentedBracketScope()){
+            if (node.Body != null)
+            {
+                using (IndentedBracketScope())
+                {
                     VisitBlock(node.Body);
                 }
             }
@@ -392,20 +494,25 @@ namespace cs2ts{
             exitFun();
         }
 
-        public override void VisitNamespaceDeclaration(NamespaceDeclarationSyntax node){
-            Emit("module {0}", node.Name.ToString());
-            using (IndentedBracketScope()){
+        public override void VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
+        {
+            Emit("namespace {0}", node.Name.ToString());
+            using (IndentedBracketScope())
+            {
                 base.VisitNamespaceDeclaration(node);
             }
         }
 
-        public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node){
+        public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node)
+        {
             enterFun();
             string mappedType = GetMappedType(node.Type);
             string visibility = GetVisibilityModifier(node.Modifiers);
-            
-            if (node.AccessorList != null && !(node.AccessorList.Accessors.All(ad => ad.Body == null))){
-                foreach (var accessor in node.AccessorList.Accessors){
+
+            if (node.AccessorList != null && !(node.AccessorList.Accessors.All(ad => ad.Body == null)))
+            {
+                foreach (var accessor in node.AccessorList.Accessors)
+                {
                     var signature =
                         (accessor.Keyword.Kind() != SyntaxKind.GetKeyword
                             ? String.Format("(value: {0})", mappedType)
@@ -415,39 +522,47 @@ namespace cs2ts{
                         signature);
                     Emit(format);
 
-                    using (IndentedBracketScope()){
+                    using (IndentedBracketScope())
+                    {
                         VisitBlock(accessor.Body);
                     }
                 }
             }
-            else{
+            else
+            {
                 Emit(string.Join(" ", visibility, string.Concat(node.Identifier.Text, ":"), mappedType + ";"));
             }
 
             exitFun();
         }
 
-        public override void VisitTryStatement(TryStatementSyntax node){
+        public override void VisitTryStatement(TryStatementSyntax node)
+        {
             Emit("try");
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 VisitBlock(node.Block);
             }
 
-            foreach (var @catch in node.Catches){
+            foreach (var @catch in node.Catches)
+            {
                 string arguments = String.Empty;
-                if (!(@catch.Declaration == null)){
+                if (!(@catch.Declaration == null))
+                {
                     if (@catch.Declaration.Identifier != null)
                         arguments = string.Format(" ({0})", @catch.Declaration.Identifier.Text);
                 }
 
                 Emit("catch" + arguments);
-                using (IndentedBracketScope()){
+                using (IndentedBracketScope())
+                {
                     VisitBlock(@catch.Block);
                 }
             }
         }
 
-        public override void VisitExpressionStatement(ExpressionStatementSyntax node){
+        public override void VisitExpressionStatement(ExpressionStatementSyntax node)
+        {
             // TODO: Don't just emit the expression as-is. Need to process the nodes of the expression
 
             var text = node.ToString();
@@ -466,13 +581,16 @@ namespace cs2ts{
             inExpress = false;
         }
 
-        private string replaceMemberAccess(string text){
+        private string replaceMemberAccess(string text)
+        {
             if (class_node == null)
                 return text;
 
-            for (int i = 0; i < this.fields.Count; i++){
+            for (int i = 0; i < this.fields.Count; i++)
+            {
                 var s = this.fields[i];
-                if (this.local_vars != null && this.local_vars.IndexOf(s) == -1){
+                if (this.local_vars != null && this.local_vars.IndexOf(s) == -1)
+                {
                     var regex2 = new Regex("(^|[^_a-zA-Z.\"])" +
                                            "(" + s + ")" +
                                            "([^_a-zA-Z0-9]|$)");
@@ -480,7 +598,8 @@ namespace cs2ts{
                 }
             }
 
-            for (int i = 0; i < this.methods.Count; i++){
+            for (int i = 0; i < this.methods.Count; i++)
+            {
                 var s = this.methods[i];
                 var regex2 = new Regex("(^|[^_a-zA-Z.])" +
                                        "(" + s + ")" +
@@ -497,12 +616,15 @@ namespace cs2ts{
         //private bool logVis = true;
         private bool logVis = false;
 
-        public override void DefaultVisit(SyntaxNode node){
-            if (node.Kind() == SyntaxKind.ContinueStatement){
+        public override void DefaultVisit(SyntaxNode node)
+        {
+            if (node.Kind() == SyntaxKind.ContinueStatement)
+            {
                 nop();
             }
 
-            if (logVis){
+            if (logVis)
+            {
                 System.Type type = node.GetType();
                 string substring = type.ToString().Substring(LLLL);
                 string toString = node.ToString();
@@ -513,7 +635,8 @@ namespace cs2ts{
             base.DefaultVisit(node);
         }
 
-        public override void VisitIdentifierName(IdentifierNameSyntax node){
+        public override void VisitIdentifierName(IdentifierNameSyntax node)
+        {
             if (node.Identifier.ToString() == "mBattler")
                 nop();
             //Console.WriteLine("Id {0}, {1}", node.Identifier, node.IsVar);
@@ -521,36 +644,43 @@ namespace cs2ts{
             base.VisitIdentifierName(node);
         }
 
-        public override void VisitReturnStatement(ReturnStatementSyntax node){
+        public override void VisitReturnStatement(ReturnStatementSyntax node)
+        {
             var text = node.ToString();
             text = replaceMemberAccess(text);
             Emit(text);
         }
 
-        public override void VisitContinueStatement(ContinueStatementSyntax node){
+        public override void VisitContinueStatement(ContinueStatementSyntax node)
+        {
             Emit(node.ToString());
             //base.VisitContinueStatement(node);
         }
 
-        public override void VisitDoStatement(DoStatementSyntax node){
+        public override void VisitDoStatement(DoStatementSyntax node)
+        {
             string format = string.Format("for ({0};{1};{2})", "", node.Condition.ToString(), "");
             Emit(format);
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitDoStatement(node);
             }
         }
 
-        public override void VisitForEachStatement(ForEachStatementSyntax node){
-            Emit(string.Format("for (var k__ in {0})", node.Expression));
+        public override void VisitForEachStatement(ForEachStatementSyntax node)
+        {
+            Emit(string.Format("for (let k__ in {0})", node.Expression));
 
-            var format = string.Format("var {0}:{1}={2}[k__];", node.Identifier, node.Type, node.Expression);
-            using (IndentedBracketScope()){
+            var format = string.Format("let {0}:{1}={2}[k__];", node.Identifier, node.Type, node.Expression);
+            using (IndentedBracketScope())
+            {
                 Emit(format);
                 base.VisitForEachStatement(node);
             }
         }
 
-        public override void VisitForStatement(ForStatementSyntax node){
+        public override void VisitForStatement(ForStatementSyntax node)
+        {
             string dec = "";
             string cond = "";
             string inc = "";
@@ -566,94 +696,112 @@ namespace cs2ts{
             format = replaceMemberAccess(format);
             Emit(format);
 
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitForStatement(node);
             }
         }
 
-        public override void VisitSwitchStatement(SwitchStatementSyntax node){
+        public override void VisitSwitchStatement(SwitchStatementSyntax node)
+        {
             Emit(string.Format("{0} ({1})", node.SwitchKeyword.Text, node.Expression));
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitSwitchStatement(node);
             }
         }
 
-        public override void VisitSwitchSection(SwitchSectionSyntax node){
-            for (int i = 0; i < node.Labels.Count; i++){
-                if (node.Labels[i] is CaseSwitchLabelSyntax){
+        public override void VisitSwitchSection(SwitchSectionSyntax node)
+        {
+            for (int i = 0; i < node.Labels.Count; i++)
+            {
+                if (node.Labels[i] is CaseSwitchLabelSyntax)
+                {
                     CaseSwitchLabelSyntax switchLabelSyntax = node.Labels[i] as CaseSwitchLabelSyntax;
                     Emit(string.Format("{0} {1}:", switchLabelSyntax.Keyword.Text, switchLabelSyntax.Value));
                 }
-                else{
+                else
+                {
                     DefaultSwitchLabelSyntax switchLabelSyntax = node.Labels[i] as DefaultSwitchLabelSyntax;
                     Emit(string.Format("{0}:", switchLabelSyntax.Keyword.Text));
                 }
             }
 
-            using (IndentedBracketScope()){
+            using (IndentedBracketScope())
+            {
                 base.VisitSwitchSection(node);
             }
 
             Emit("break;");
         }
 
-        public override void VisitVariableDeclaration(VariableDeclarationSyntax node){
-            if (inMethod){
-                foreach (var identifier in node.Variables){
+        public override void VisitVariableDeclaration(VariableDeclarationSyntax node)
+        {
+            if (inMethod)
+            {
+                foreach (var identifier in node.Variables)
+                {
                     local_vars.Add(identifier.Identifier.Text);
                 }
             }
 
-            if (node.Parent.Kind() == SyntaxKind.ForStatement){
+            if (node.Parent.Kind() == SyntaxKind.ForStatement)
+            {
                 return;
             }
 
 
             var decl = visitDecl(node);
-            for (int i = 0; i < decl.Count; i++){
+            for (int i = 0; i < decl.Count; i++)
+            {
                 var s = decl[i];
                 s = replaceMemberAccess(s);
                 Emit(s + ";");
             }
         }
 
-        private List<string> visitDecl(VariableDeclarationSyntax node){
+        private List<string> visitDecl(VariableDeclarationSyntax node)
+        {
             var type = node.Type.ToString() != "var" ? GetMappedType(node.Type) : String.Empty;
             var list = new List<string>();
             string format;
-            if (node.Variables.SeparatorCount == 0){
-                foreach (var identifier in node.Variables){
+            if (node.Variables.SeparatorCount == 0)
+            {
+                foreach (var identifier in node.Variables)
+                {
                     var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
                     var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
-                    list.Add(string.Format("var {0}{1}{2}", identifier.Identifier.Value, typeDeclaration,
+                    list.Add(string.Format("let {0}{1}{2}", identifier.Identifier.Value, typeDeclaration,
                         initializer));
                 }
             }
-            else{
-//                if (node.ToString() == "int i = 0, imax = t.childCount")
-//                    nop();
-//                {
-//                    var prefix = "var ";
-//                    var identifier = node.Variables.Last();
-//                    var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
-//                    var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
-//
-//                    string padding = new string(' ', prefix.Length);
-//                    var separator = String.Concat(",", Environment.NewLine, GetIndentation(), padding);
-//                    var enumerable = node.Variables.Select(
-//                        v => v.Identifier.Value
-//                    ).ToList();
-//                    var lines = prefix + String.Join(separator,
-//                                    enumerable);
-//                    list.Add(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
-//                }
+            else
+            {
+                //                if (node.ToString() == "int i = 0, imax = t.childCount")
+                //                    nop();
+                //                {
+                //                    var prefix = "var ";
+                //                    var identifier = node.Variables.Last();
+                //                    var initializer = identifier.Initializer != null ? (" " + identifier.Initializer) : String.Empty;
+                //                    var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
+                //
+                //                    string padding = new string(' ', prefix.Length);
+                //                    var separator = String.Concat(",", Environment.NewLine, GetIndentation(), padding);
+                //                    var enumerable = node.Variables.Select(
+                //                        v => v.Identifier.Value
+                //                    ).ToList();
+                //                    var lines = prefix + String.Join(separator,
+                //                                    enumerable);
+                //                    list.Add(string.Format("{0}{1}{2};", lines, typeDeclaration, initializer));
+                //                }
                 if (node.ToString() == "int i = 0, imax = t.childCount")
                     nop();
                 {
-                    var prefix = "var ";
+                    var prefix = "let ";
 
                     List<string> vars = new List<string>();
-                    for (int i = 0; i < node.Variables.Count; i++){
+                    for (int i = 0; i < node.Variables.Count; i++)
+                    {
                         var identifier = node.Variables[i];
                         var typeDeclaration = !string.IsNullOrEmpty(type) ? ": " + type : String.Empty;
                         var initializer = identifier.Initializer != null
@@ -690,7 +838,8 @@ namespace cs2ts{
             "ui",
         };
 
-        public override void VisitUsingDirective(UsingDirectiveSyntax node){
+        public override void VisitUsingDirective(UsingDirectiveSyntax node)
+        {
             //import {BaseBattleThing} from "./BaseBattleThing";
             string name_sp = node.Name.ToString();
 
@@ -711,7 +860,8 @@ namespace cs2ts{
 
         private int LLLL = "Microsoft.CodeAnalysis.CSharp.Syntax.".Length;
 
-        public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node){
+        public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node)
+        {
             enterFun();
             string visibility = GetVisibilityModifier(node.Modifiers);
 
@@ -720,8 +870,10 @@ namespace cs2ts{
             var methodSignature = string.Format("constructor{0}", parameters);
             Emit(String.Join(" ", methodSignature));
 
-            if (node.Body != null){
-                using (IndentedBracketScope()){
+            if (node.Body != null)
+            {
+                using (IndentedBracketScope())
+                {
                     VisitBlock(node.Body);
                 }
             }
@@ -729,8 +881,10 @@ namespace cs2ts{
             exitFun();
         }
 
-        private string parseParams(ParameterListSyntax nodeParameterList){
-            for (int i = 0; i < nodeParameterList.Parameters.Count; i++){
+        private string parseParams(ParameterListSyntax nodeParameterList)
+        {
+            for (int i = 0; i < nodeParameterList.Parameters.Count; i++)
+            {
                 var param = nodeParameterList.Parameters[i];
                 this.local_vars.Add(param.Identifier.Text);
             }
@@ -747,44 +901,52 @@ namespace cs2ts{
             return parameters;
         }
 
-        public override void VisitThrowStatement(ThrowStatementSyntax node){
+        public override void VisitThrowStatement(ThrowStatementSyntax node)
+        {
             Emit(string.Format("throw new Error('{0}')", node.ToString()));
             base.VisitThrowStatement(node);
         }
 
-        public override void VisitIfStatement(IfStatementSyntax node){
+        public override void VisitIfStatement(IfStatementSyntax node)
+        {
             var args = node.Condition.ToString();
             args = replaceMemberAccess(args);
             Emit("if ({0})", args);
             using (IndentedBracketScope(node.Statement))
                 Visit(node.Statement);
 
-            if (node.Else != null){
+            if (node.Else != null)
+            {
                 Emit("else");
                 using (IndentedBracketScope(node.Else.Statement))
                     Visit(node.Else.Statement);
             }
         }
 
-        public override void VisitWhileStatement(WhileStatementSyntax node){
+        public override void VisitWhileStatement(WhileStatementSyntax node)
+        {
             Emit("while ({0})", node.Condition.ToString());
             using (IndentedBracketScope(node.Statement))
                 Visit(node.Statement);
         }
 
-        public void nop(){
+        public void nop()
+        {
         }
 
-        public override void VisitTrivia(SyntaxTrivia trivia){
+        public override void VisitTrivia(SyntaxTrivia trivia)
+        {
             var kind = trivia.Kind();
 
             if (kind == SyntaxKind.EndOfLineTrivia
-                || kind == SyntaxKind.WhitespaceTrivia){
+                || kind == SyntaxKind.WhitespaceTrivia)
+            {
                 base.VisitTrivia(trivia);
                 return;
             }
 
-            if (kind == SyntaxKind.DocumentationCommentExteriorTrivia){
+            if (kind == SyntaxKind.DocumentationCommentExteriorTrivia)
+            {
                 Emit(trivia.ToString() + trivia.Token.ToString());
             }
 
@@ -795,26 +957,31 @@ namespace cs2ts{
 
             if (kind == SyntaxKind.MultiLineCommentTrivia
                 || kind == SyntaxKind.MultiLineDocumentationCommentTrivia
-            ){
+            )
+            {
                 Emit(trivia.ToString());
             }
         }
 
-        public override void VisitDocumentationCommentTrivia(DocumentationCommentTriviaSyntax trivia){
+        public override void VisitDocumentationCommentTrivia(DocumentationCommentTriviaSyntax trivia)
+        {
             base.VisitDocumentationCommentTrivia(trivia);
 
-//            if (trivia.Kind() == SyntaxKind.SingleLineDocumentationCommentTrivia)
-//                Emit(trivia.ToString());
+            //            if (trivia.Kind() == SyntaxKind.SingleLineDocumentationCommentTrivia)
+            //                Emit(trivia.ToString());
         }
 
-        internal class BlockScope : IDisposable{
+        internal class BlockScope : IDisposable
+        {
             private readonly Transpiler _visitor;
             private readonly bool _requiresBraces;
 
-            internal BlockScope(Transpiler visitor) : this(visitor, true){
+            internal BlockScope(Transpiler visitor) : this(visitor, true)
+            {
             }
 
-            internal BlockScope(Transpiler visitor, bool requiresBraces){
+            internal BlockScope(Transpiler visitor, bool requiresBraces)
+            {
                 _requiresBraces = requiresBraces;
                 _visitor = visitor;
                 if (_requiresBraces)
@@ -822,7 +989,8 @@ namespace cs2ts{
                 _visitor.AddIndent();
             }
 
-            public void Dispose(){
+            public void Dispose()
+            {
                 _visitor.RemoveIndent();
                 if (_requiresBraces)
                     _visitor.Emit("}");
